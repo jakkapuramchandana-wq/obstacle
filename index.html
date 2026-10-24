@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rover Telemetry HUD</title>
+    <!-- High-tech aerospace fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff66;
+            --neon-red: #ff0055;
+            --bg-dark: #050914;
+            --glass-bg: rgba(10, 15, 30, 0.6);
+            --glass-border: rgba(0, 243, 255, 0.2);
+        }
+
+        /* Tech grid background */
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background-color: var(--bg-dark);
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hud-container {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        @media (min-width: 800px) {
+            .hud-container { grid-template-columns: 1.2fr 0.8fr; }
+            .hud-header { grid-column: span 2; }
+        }
+
+        /* Glassmorphism Panels */
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 243, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Futuristic corner accents */
+        .panel::before, .panel::after {
+            content: ''; position: absolute; width: 15px; height: 15px;
+            border: 2px solid var(--neon-blue); transition: 0.3s;
+        }
+        .panel::before { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 16px; }
+        .panel::after { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 16px; }
+
+        .panel-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title::before {
+            content: ''; display: block; width: 8px; height: 8px; background: var(--neon-blue);
+        }
+
+        /* Header & Connect Button */
+        .hud-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(90deg, rgba(10,15,30,0.9) 0%, rgba(0,243,255,0.1) 100%);
+        }
+        
+        h1 { font-family: 'Rajdhani', sans-serif; font-size: 2rem; margin: 0; letter-spacing: 2px; }
+        .sub-text { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: #888; }
+
+        .btn-connect {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700; font-size: 1.1rem; letter-spacing: 1px;
+            background: transparent; color: var(--neon-blue);
+            border: 1px solid var(--neon-blue);
+            padding: 12px 24px; border-radius: 4px;
+            cursor: pointer; text-transform: uppercase;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0,243,255,0.2), inset 0 0 10px rgba(0,243,255,0.1);
+        }
+        .btn-connect:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue); }
+
+        /* Status Banner */
+        .status-banner {
+            font-family: 'Share Tech Mono', monospace;
+            text-align: center; font-size: 1.2rem; padding: 12px; margin-bottom: 20px;
+            border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px dashed #555;
+            letter-spacing: 2px; transition: 0.3s;
+        }
+
+        /* Mode Buttons */
+        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .mode-btn {
+            background: rgba(0,0,0,0.5); color: #888; border: 1px solid #333;
+            padding: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+            font-size: 1rem; letter-spacing: 1px; cursor: pointer; border-radius: 4px; transition: 0.3s;
+        }
+        .mode-btn.active-auto { border-color: var(--neon-green); color: var(--neon-green); box-shadow: 0 0 15px rgba(0,255,102,0.2); }
+        .mode-btn.active-manual { border-color: var(--neon-blue); color: var(--neon-blue); box-shadow: 0 0 15px rgba(0,243,255,0.2); }
+
+        /* Sliders */
+        .slider-group { margin-bottom: 20px; }
+        .slider-header { display: flex; justify-content: space-between; font-family: 'Rajdhani'; color: #ccc; margin-bottom: 8px; }
+        .val-display { font-family: 'Share Tech Mono', monospace; color: var(--neon-blue); }
+        
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #333; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: var(--neon-blue); margin-top: -7px; cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* Tactical D-Pad */
+        .d-pad-container { display: flex; justify-content: center; margin-top: 20px; }
+        .d-pad { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; }
+        .d-pad button {
+            width: 60px; height: 60px; background: rgba(0,243,255,0.05); border: 1px solid var(--glass-border);
+            color: var(--neon-blue); font-size: 1.2rem; border-radius: 8px; cursor: pointer; transition: 0.2s;
+        }
+        .d-pad button:hover, .d-pad button.active-key { background: rgba(0,243,255,0.2); box-shadow: 0 0 15px var(--neon-blue); }
+        .d-pad button:active { transform: scale(0.9); }
+        .d-pad .stop-btn { border-color: var(--neon-red); color: var(--neon-red); background: rgba(255,0,85,0.05); }
+        .d-pad .stop-btn:hover { background: rgba(255,0,85,0.2); box-shadow: 0 0 15px var(--neon-red); }
+        
+        .keyboard-hint { text-align: center; color: #555; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; margin-top: 15px; }
+
+        /* Circular Sonar Gauge */
+        .gauge-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        .svg-gauge { width: 220px; height: 220px; transform: rotate(-90deg); filter: drop-shadow(0 0 10px rgba(0,255,102,0.3)); }
+        .bg-circle { fill: none; stroke: #222; stroke-width: 8; }
+        .fg-circle {
+            fill: none; stroke: var(--neon-green); stroke-width: 8; stroke-linecap: round;
+            stroke-dasharray: 565.48; /* 2 * PI * 90 */
+            stroke-dashoffset: 565.48; /* Starts empty */
+            transition: stroke-dashoffset 0.4s ease-out, stroke 0.4s ease;
+        }
+        .gauge-text {
+            position: absolute; text-align: center; transform: translateY(10px);
+        }
+        .dist-val { font-family: 'Share Tech Mono', monospace; font-size: 4rem; color: #fff; line-height: 1; }
+        .dist-unit { font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; color: #888; }
+        
+        /* Alert states */
+        .alert-text { color: var(--neon-red) !important; text-shadow: 0 0 10px var(--neon-red); }
+        .alert-stroke { stroke: var(--neon-red) !important; filter: drop-shadow(0 0 10px var(--neon-red)); animation: pulse 1s infinite alternate; }
+
+        @keyframes pulse {
+            0% { filter: drop-shadow(0 0 5px var(--neon-red)); }
+            100% { filter: drop-shadow(0 0 25px var(--neon-red)); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hud-container">
+    <!-- Header -->
+    <div class="panel hud-header">
+        <div>
+            <h1>ROVER SYS-COM</h1>
+            <div class="sub-text">ESP32 MULTI-ROLE KINEMATICS</div>
+        </div>
+        <button id="connectBtn" class="btn-connect" onclick="connectBLE()">INITIATE UPLINK</button>
+    </div>
+
+    <!-- Left Panel: Controls -->
+    <div class="panel">
+        <h2 class="panel-title">Command Interface</h2>
+        
+        <div id="modeIndicator" class="status-banner">WAITING FOR TELEMETRY...</div>
+
+        <div class="mode-grid">
+            <button id="btnAuto" class="mode-btn" onclick="sendCommand('A')">AI SCAN (AUTO)</button>
+            <button id="btnManual" class="mode-btn" onclick="sendCommand('M')">MANUAL OVERRIDE</button>
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-header">
+                <span>DRIVE THRUST</span>
+                <span class="val-display" id="d-val">200 PWM</span>
+            </div>
+            <input type="range" id="driveSpeed" min="80" max="255" value="200" 
+                   oninput="document.getElementById('d-val').innerText = this.value + ' PWM'"
+                   onchange="sendSpeedCommand('V', this.value)">
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-header">
+                <span>ROTATION THRUST</span>
+                <span class="val-display" id="t-val">200 PWM</span>
+            </div>
+            <input type="range" id="turnSpeed" min="80" max="255" value="200" 
+                   oninput="document.getElementById('t-val').innerText = this.value + ' PWM'"
+                   onchange="sendSpeedCommand('W', this.value)">
+        </div>
+
+        <div class="d-pad-container">
+            <div class="d-pad">
+                <div></div>
+                <button id="btn-F" onmousedown="sendCommand('F')" onmouseup="sendCommand('S')" ontouchstart="sendCommand('F')" ontouchend="sendCommand('S')">▲</button>
+                <div></div>
+                <button id="btn-L" onmousedown="sendCommand('L')" onmouseup="sendCommand('S')" ontouchstart="sendCommand('L')" ontouchend="sendCommand('S')">◀</button>
+                <button class="stop-btn" onclick="sendCommand('S')">■</button>
+                <button id="btn-R" onmousedown="sendCommand('R')" onmouseup="sendCommand('S')" ontouchstart="sendCommand('R')" ontouchend="sendCommand('S')">▶</button>
+                <div></div>
+                <button id="btn-B" onmousedown="sendCommand('B')" onmouseup="sendCommand('S')" ontouchstart="sendCommand('B')" ontouchend="sendCommand('S')">▼</button>
+                <div></div>
+            </div>
+        </div>
+        <div class="keyboard-hint">KEYBOARD ENABLED: W A S D / ARROWS</div>
+    </div>
+
+    <!-- Right Panel: Telemetry Radar -->
+    <div class="panel" style="display: flex; flex-direction: column;">
+        <h2 class="panel-title">Proximity Array</h2>
+        
+        <div class="gauge-container">
+            <svg class="svg-gauge" viewBox="0 0 200 200">
+                <circle class="bg-circle" cx="100" cy="100" r="90"></circle>
+                <circle id="radar-ring" class="fg-circle" cx="100" cy="100" r="90"></circle>
+            </svg>
+            <div class="gauge-text">
+                <div class="dist-val" id="t-dist">--</div>
+                <div class="dist-unit">CENTIMETERS</div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+    const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+    const CMD_CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+    const TEL_CHAR_UUID = "19b10002-e8f2-537e-4f6c-d104768a1214";
+
+    let device, server, cmdCharacteristic, telCharacteristic;
+    let isAuto = true;
+    let activeKey = null; // Tracks current keyboard input
+
+    async function connectBLE() {
+        try {
+            const btn = document.getElementById('connectBtn');
+            btn.innerText = "ESTABLISHING...";
+
+            device = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'ESP32_Rover_BLE' }],
+                optionalServices: [SERVICE_UUID]
+            });
+
+            server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            
+            cmdCharacteristic = await service.getCharacteristic(CMD_CHAR_UUID);
+            telCharacteristic = await service.getCharacteristic(TEL_CHAR_UUID);
+
+            await telCharacteristic.startNotifications();
+            telCharacteristic.addEventListener('characteristicvaluechanged', handleTelemetry);
+            
+            btn.innerText = "UPLINK ACTIVE";
+            btn.style.background = "var(--neon-blue)";
+            btn.style.color = "#000";
+
+            document.getElementById('modeIndicator').innerText = "SYSTEM ONLINE";
+            document.getElementById('modeIndicator').style.borderColor = "var(--neon-green)";
+            document.getElementById('modeIndicator').style.color = "var(--neon-green)";
+
+            // Sync initial speeds
+            sendSpeedCommand('V', document.getElementById('driveSpeed').value);
+            setTimeout(() => sendSpeedCommand('W', document.getElementById('turnSpeed').value), 100);
+
+        } catch (error) {
+            console.error("Connection failed!", error);
+            const btn = document.getElementById('connectBtn');
+            btn.innerText = "UPLINK FAILED";
+            btn.style.borderColor = "var(--neon-red)";
+            btn.style.color = "var(--neon-red)";
+        }
+    }
+
+    function handleTelemetry(event) {
+        const value = new TextDecoder().decode(event.target.value);
+        try {
+            const data = JSON.parse(value);
+            
+            // Mode Update
+            const modeInd = document.getElementById('modeIndicator');
+            const btnA = document.getElementById('btnAuto');
+            const btnM = document.getElementById('btnManual');
+
+            if (data.m === 1) {
+                modeInd.innerText = "STATUS: AUTONOMOUS SCAN";
+                btnA.classList.add('active-auto');
+                btnM.classList.remove('active-manual');
+                isAuto = true;
+            } else {
+                modeInd.innerText = "STATUS: MANUAL CONTROL";
+                btnM.classList.add('active-manual');
+                btnA.classList.remove('active-auto');
+                isAuto = false;
+            }
+
+            // Radar Circular Gauge Logic
+            const distVal = document.getElementById('t-dist');
+            const radarRing = document.getElementById('radar-ring');
+            
+            distVal.innerText = data.d;
+            
+            let percent = Math.min((data.d / 100), 1);
+            if(data.d === 0) percent = 0;
+            
+            const offset = 565.48 - (percent * 565.48);
+            radarRing.style.strokeDashoffset = offset;
+
+            // Danger Threshold Alerts
+            const dangerLimit = isAuto ? 15 : 20;
+            
+            if(data.d > 0 && data.d <= dangerLimit) {
+                distVal.classList.add('alert-text');
+                radarRing.classList.add('alert-stroke');
+            } else {
+                distVal.classList.remove('alert-text');
+                radarRing.classList.remove('alert-stroke');
+                radarRing.style.stroke = isAuto ? "var(--neon-green)" : "var(--neon-blue)";
+            }
+            
+        } catch (e) { }
+    }
+
+    async function sendCommand(cmd) {
+        if (!cmdCharacteristic) return;
+        const encoder = new TextEncoder();
+        await cmdCharacteristic.writeValue(encoder.encode(cmd));
+    }
+
+    async function sendSpeedCommand(type, value) {
+        if (!cmdCharacteristic) return;
+        let commandString = type + value; 
+        const encoder = new TextEncoder();
+        await cmdCharacteristic.writeValue(encoder.encode(commandString));
+    }
+
+    // ==========================================
+    // KEYBOARD CONTROLS (W A S D & ARROWS)
+    // ==========================================
+    window.addEventListener('keydown', (e) => {
+        // Prevent auto-repeat spamming if key is held down
+        if (activeKey === e.code) return;
+
+        let btnToHighlight = null;
+
+        switch (e.code) {
+            case 'ArrowUp':
+            case 'KeyW':
+                activeKey = e.code;
+                sendCommand('F');
+                btnToHighlight = 'btn-F';
+                e.preventDefault();
+                break;
+            case 'ArrowDown':
+            case 'KeyS':
+                activeKey = e.code;
+                sendCommand('B');
+                btnToHighlight = 'btn-B';
+                e.preventDefault();
+                break;
+            case 'ArrowLeft':
+            case 'KeyA':
+                activeKey = e.code;
+                sendCommand('L');
+                btnToHighlight = 'btn-L';
+                e.preventDefault();
+                break;
+            case 'ArrowRight':
+            case 'KeyD':
+                activeKey = e.code;
+                sendCommand('R');
+                btnToHighlight = 'btn-R';
+                e.preventDefault();
+                break;
+        }
+        
+        if(btnToHighlight) {
+            document.getElementById(btnToHighlight).classList.add('active-key');
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === activeKey) {
+            activeKey = null;
+            sendCommand('S'); // Stop rover when key is released
+            e.preventDefault();
+            
+            // Remove highlight classes
+            ['btn-F', 'btn-B', 'btn-L', 'btn-R'].forEach(id => {
+                document.getElementById(id).classList.remove('active-key');
+            });
+        }
+    });
+
+</script>
+
+</body>
+</html>
